@@ -61,6 +61,7 @@ backtrackR <- function(name, connections){
         
         ## Plotting data ----
         plotmat(M, 
+                main= paste("Diagram of", name),
                 pos = pos, 
                 name = names,
                 relsize=1,

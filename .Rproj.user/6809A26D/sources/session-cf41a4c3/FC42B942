@@ -3,9 +3,9 @@
     "path": "C:/Users/dmend/OneDrive/Desktop/code/R/backtrackR/backtrackR.R",
     "project_path": "backtrackR.R",
     "type": "r_source",
-    "hash": "0",
+    "hash": "3283233002",
     "contents": "",
-    "dirty": true,
+    "dirty": false,
     "created": 1673289432608.0,
     "source_on_save": false,
     "relative_order": 4,
@@ -16,11 +16,11 @@
         "scrollLine": "48"
     },
     "folds": "22|24|39|9|\n",
-    "lastKnownWriteTime": 1673298330,
+    "lastKnownWriteTime": 1673302228,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1673301023161,
+    "last_content_update": 1673302228424,
     "read_only": false,
     "read_only_alternatives": []
 }
