@@ -1,0 +1,181 @@
+# load packages
+library(tidyverse)
+library(rvest)
+library(readtext)
+library(flextable)
+library(webdriver)
+library(networkD3)
+library(lubridate)
+library(diagram)
+
+# define urls
+url <- "https://cran.r-project.org/web/packages/available_packages_by_name.html"
+url_basic <- "https://cran.r-project.org/web/packages/"
+# download content
+webc <- rvest::read_html(url)
+
+webc %>%
+        # extract paragraphs
+        rvest::html_nodes("a") %>%
+        # extract text
+        rvest::html_attr('href') -> webtxt
+# inspect
+webs <- paste0(url_basic,unlist(str_split(webtxt,"../../")))
+packs <- unlist(str_split(unlist(str_split(webtxt,"../../web/packages/")),"/index.html"))
+packs <- packs[28:length(to)]
+packs <- packs[packs!=""]
+db_packs <- list()
+
+i <- 1
+for (i in i:length(packs)){
+        url_temp <- paste(url_basic,packs[i],'/index.html', sep = "")
+        all_info <- read_html(url_temp)
+        
+        name <- packs[i]
+        title<- as.character(all_info %>% html_nodes("h2"))
+        desc<- as.character({all_info %>% html_nodes("p")}[1])
+        
+        html_doc <- as.character(all_info %>% html_nodes("td"))
+        html_doc <- gsub("<td>","",gsub("</td>","",html_doc))
+        vers <- which(html_doc == "Version:")+1
+        dep <- which(html_doc == "Depends:")+1
+        imp <- which(html_doc == "Imports:")+1
+        pub <- which(html_doc == "Published:")+1
+        if (length(vers)>0){
+                version <- html_doc[vers]
+        }
+        if (length(dep)>0){
+                depend <- gsub("^ ",
+                               "",
+                               gsub("\n",
+                                    "",
+                                    gsub("<(.*?)>",
+                                         "",
+                                         str_split(html_doc[dep], 
+                                                   ","
+                                         )[[1]]
+                                    )
+                               )
+                )
+                r_vers <- gsub("R \\(",
+                               "",
+                               gsub("\\)",
+                                    "",
+                                    depend[1]
+                               )
+                )
+                depend[1] <- "R"
+                
+        }
+        if (length(imp)>0){
+                imports <- gsub(" \\((.*?)\\)",
+                                "",
+                                gsub("^ ",
+                                     "",
+                                     gsub("\n",
+                                          "",
+                                          gsub("<(.*?)>",
+                                               "",
+                                               str_split(html_doc[imp], 
+                                                         ","
+                                               )[[1]]
+                                          )
+                                     )
+                                )
+                                )
+        } else {
+                imports <- ''
+        }
+        if(length(pub)){
+                date_pub <- as.Date(html_doc[pub])
+        }
+        
+        db_packs[[i]] <- data.frame(name=name,
+                             title=title,
+                             desc=desc,
+                             vers=vers,
+                             depend=paste(depend,collapse=","),
+                             r_vers=r_vers,
+                             imports=paste(imports,collapse=","),
+                             date_pub=date_pub)
+        
+        
+        
+        if((i/1000)%%1 ==0){
+                print(i*100/length(packs))
+        }
+        Sys.sleep(0.001)
+        
+}
+i_old <- i
+
+df_packs <- do.call("rbind", db_packs)
+write.csv(df_packs,"df_packs.csv")
+connections <- data.frame(source=character(0),
+                          target=character(0))
+for (j in 1:dim(df_packs)[1]){
+        new_df <- data.frame(target=unlist(c(str_split(df_packs$depend[j],","),
+                                str_split(df_packs$import[j],","))))
+        new_df$source <- df_packs$name[j]
+        connections <- rbind(connections,
+                             new_df)
+}
+connections <- distinct(connections[connections$target!="",])
+connections$target <- gsub(" \\((.*?)\\)", "", connections$target)
+connections$source <- gsub(" \\((.*?)\\)", "", connections$source)
+
+write.csv(connections,"connections.csv")
+
+#function
+
+with_the_flow <- function(name){
+        level <- 1
+        packages <- list()
+        packages[[level]] <- name
+        number_new_packages <- 1
+        while (number_new_packages>0){
+                level <- level+1
+                packages[[level]] <- unique(connections[connections$source %in% unlist(packages[[level-1]]),]$target)
+                number_new_packages <- length(unique(unlist(packages[1:(level)])))-
+                        length(unique(unlist(packages[1:(level-1)])))
+                
+                for (i in 1:(level-1)){
+                        packages[[i]] <- packages[[i]][!packages[[i]] %in% packages[[level]]]
+                }
+        }
+        pos <- numeric(0)
+        for (i in 1:length(packages)){
+                pos <- c(pos,length(packages[[i]]))
+        }
+        names <- unlist(packages)
+        pos <- pos[!pos==0]
+        M <- matrix(nrow = length(names),
+                    ncol = length(names),
+                    byrow = TRUE, data = 0)
+        for (j in 1:length(names)){
+                origin <- which(names==names[j])
+                end_packages <- connections[connections$source==names[j],]$target
+                idx <- match(end_packages,names)
+                for (k in idx){
+                        M[j,idx] <- ""
+                }
+        }
+        plotmat(M, 
+                pos = pos, 
+                name = names,
+                relsize=1,
+                lcol="black",
+                lwd = 1,
+                box.lwd = 2, 
+                box.cex = 0.8,
+                box.size = 0.06,
+                box.type = "circle", 
+                box.prop = 0.5)
+}       
+        
+
+
+
+
+
+
